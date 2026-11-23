@@ -1,18 +1,20 @@
 from sqlalchemy import insert
 from pydantic import BaseModel
 
+from src.repositories.mappers.base import *
+
 
 
 class BaseRepository():
-    model = None
-    schema = None
+    model: type[DBModelType]
+    mapper: type[DataMapper[DBModelType, SchemaType]]
 
     def __init__(self, session):
         self.session = session
 
 
     async def add(self, data: BaseModel):
-        query = insert(self.model).values(**data.model_dump()).returning(self.model)
+        query = insert(self.model).values(self.mapper.map_to_persistance(data)).returning(self.model)
         result = await self.session.execute(query)
         model = result.scalars().one()
-        return self.schema.model_validate(model)
+        return self.mapper.map_to_domain(model)
